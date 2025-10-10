@@ -86,29 +86,14 @@ This project provides a comprehensive solution for waste classification and disp
 ├── ...                  # Other project files (UI components, backend logic, etc.)
 ```
 
-📸 **Screenshots**
 
-(Screenshots of the application in action would be placed here.)
-
-🤝 **Contributing**
-
-We welcome contributions to this project! Please follow these steps:
-
-1.  Fork the repository.
-2.  Create a new branch for your feature or bug fix.
-3.  Make your changes and commit them with clear, concise messages.
-4.  Submit a pull request.
 
 📝 **License**
 
 This project is licensed under the [MIT License](LICENSE) - see the `LICENSE` file for details.
 
-📬 **Contact**
-
-If you have any questions or suggestions, please feel free to contact us at [your_email@example.com](mailto:your_email@example.com).
 
 💖 **Thanks**
 
 Thank you for your interest in this project! We hope it helps promote responsible waste management and makes a positive impact on the environment.
 
-This is written by [readme.ai](https://readme-generator-phi.vercel.app/).
