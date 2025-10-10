@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoSort - AI-Powered Waste Classification</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065f46',
+                            900: '#064e3b',
+                        }
+                    },
+                    animation: {
+                        'float': 'float 3s ease-in-out infinite',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'slideIn': 'slideIn 0.3s ease-out',
+                        'fadeIn': 'fadeIn 0.5s ease-out',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        slideIn: {
+                            '0%': { transform: 'translateX(100%)', opacity: '0' },
+                            '100%': { transform: 'translateX(0)', opacity: '1' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        .dark ::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #10b981;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #059669;
+        }
+        
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .dark .glass {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Custom animations */
+        .gradient-text {
+            background: linear-gradient(135deg, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Chat messages */
+        .message-enter {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        /* Leaflet custom styles */
+        .custom-marker {
+            background-color: #10b981;
+            width: 3rem;
+            height: 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            border: 3px solid white;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .custom-marker-inner {
+            transform: rotate(45deg);
+            font-size: 1.3rem;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 shadow-lg transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-blue-500 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-recycle text-white text-xl"></i>
+                    </div>
+                    <span class="text-2xl font-bold gradient-text">EcoSort AI</span>
+                </div>
+                
+                <!-- Desktop Navigation -->
+                <div class="hidden md:flex items-center space-x-1">
+                    <a href="#" data-section="home" class="nav-link px-4 py-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 transition-all duration-200 flex items-center space-x-2">
+                        <i class="fas fa-home"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="#" data-section="classify" class="nav-link px-4 py-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 transition-all duration-200 flex items-center space-x-2">
+                        <i class="fas fa-camera"></i>
+                        <span>Classify</span>
+                    </a>
+                    <a href="#" data-section="centers" class="nav-link px-4 py-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 transition-all duration-200 flex items-center space-x-2">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>Centers</span>
+                    </a>
+                    <a href="#" data-section="dashboard" class="nav-link px-4 py-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 transition-all duration-200 flex items-center space-x-2">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" data-section="learn" class="nav-link px-4 py-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 transition-all duration-200 flex items-center space-x-2">
+                        <i class="fas fa-book"></i>
+                        <span>Learn</span>
+                    </a>
+                </div>
+                
+                <!-- Right Side -->
+                <div class="flex items-center space-x-4">
+                    <!-- Dark Mode Toggle -->
+                    <button id="themeToggle" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:scale-110 transition-transform duration-200">
+                        <i class="fas fa-moon dark:fa-sun"></i>
+                    </button>
+                    
+                    <!-- Mobile Menu Button -->
+                    <button id="mobileMenuBtn" class="md:hidden p-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile Menu -->
+        <div id="mobileMenu" class="hidden md:hidden bg-white dark:bg-gray-800 border-t dark:border-gray-700">
+            <div class="px-4 py-2 space-y-1">
+                <a href="#" data-section="home" class="mobile-nav-link block px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 transition-all duration-200">
+                    <i class="fas fa-home mr-3"></i> Home
+                </a>
+                <a href="#" data-section="classify" class="mobile-nav-link block px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 transition-all duration-200">
+                    <i class="fas fa-camera mr-3"></i> Classify
+                </a>
+                <a href="#" data-section="centers" class="mobile-nav-link block px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 transition-all duration-200">
+                    <i class="fas fa-map-marker-alt mr-3"></i> Centers
+                </a>
+                <a href="#" data-section="dashboard" class="mobile-nav-link block px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 transition-all duration-200">
+                    <i class="fas fa-chart-line mr-3"></i> Dashboard
+                </a>
+                <a href="#" data-section="learn" class="mobile-nav-link block px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 transition-all duration-200">
+                    <i class="fas fa-book mr-3"></i> Learn
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Stats Bar -->
+    <div class="fixed top-16 left-0 right-0 z-40 bg-gradient-to-r from-primary-600 to-blue-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex justify-center items-center space-x-8 text-sm font-semibold">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-star text-yellow-300"></i>
+                    <span id="totalPoints">0</span>
+                    <span class="hidden sm:inline">Points</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-trophy text-yellow-300"></i>
+                    <span id="badgeCount">0</span>
+                    <span class="hidden sm:inline">Badges</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-leaf text-green-300"></i>
+                    <span>Level <span id="userLevel">1</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="pt-32 pb-20 px-4">
+        
+        <!-- Home Section -->
+        <section id="home" class="section max-w-7xl mx-auto">
+            <!-- Hero -->
+            <div class="text-center mb-16 animate-fadeIn">
+                <h1 class="text-5xl md:text-6xl font-bold mb-6">
+                    <span class="gradient-text">Welcome to EcoSort AI</span>
+                </h1>
+                <p class="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
+                    Your intelligent waste classification assistant powered by AI. Sort waste correctly, track your impact, and build sustainable habits.
+                </p>
+                
+                <!-- Hero Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 max-w-4xl mx-auto">
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 transform hover:scale-105 transition-transform duration-300">
+                        <div class="text-4xl font-bold text-primary-600 dark:text-primary-400 mb-2" id="totalClassifications">0</div>
+                        <div class="text-gray-600 dark:text-gray-400">Items Classified</div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 transform hover:scale-105 transition-transform duration-300">
+                        <div class="text-4xl font-bold text-blue-600 dark:text-blue-400 mb-2" id="recyclingImpact">0 kg</div>
+                        <div class="text-gray-600 dark:text-gray-400">Waste Diverted</div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 transform hover:scale-105 transition-transform duration-300">
+                        <div class="text-4xl font-bold text-green-600 dark:text-green-400 mb-2" id="co2Saved">0 kg</div>
+                        <div class="text-gray-600 dark:text-gray-400">CO₂ Saved</div>
+                    </div>
+                </div>
+                
+                <button onclick="navigateToSection('classify')" class="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-primary-600 to-blue-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200">
+                    <span>Start Classifying</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+            
+            <!-- Features Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                    <div class="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center mb-4 animate-float">
+                        <i class="fas fa-brain text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">AI-Powered</h3>
+                    <p class="text-gray-600 dark:text-gray-400">Advanced machine learning for accurate waste classification</p>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                    <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 animate-float" style="animation-delay: 0.2s;">
+                        <i class="fas fa-comments text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">AI Chatbot</h3>
+                    <p class="text-gray-600 dark:text-gray-400">Get instant help from our Groq-powered assistant</p>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                    <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 animate-float" style="animation-delay: 0.4s;">
+                        <i class="fas fa-gamepad text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Gamified</h3>
+                    <p class="text-gray-600 dark:text-gray-400">Earn points and badges for sustainable habits</p>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                    <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mb-4 animate-float" style="animation-delay: 0.6s;">
+                        <i class="fas fa-map-marked-alt text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Find Centers</h3>
+                    <p class="text-gray-600 dark:text-gray-400">Locate nearby recycling centers instantly</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Classify Section -->
+        <section id="classify" class="section hidden max-w-4xl mx-auto">
+            <div class="text-center mb-10">
+                <h2 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-camera text-primary-600 dark:text-primary-400"></i>
+                    Classify Your Waste
+                </h2>
+                <p class="text-gray-600 dark:text-gray-400">Upload or capture an image to identify waste type</p>
+            </div>
+            
+            <!-- Upload Area -->
+            <div id="uploadArea" class="mb-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border-4 border-dashed border-gray-300 dark:border-gray-600 hover:border-primary-500 dark:hover:border-primary-400 transition-all duration-300 cursor-pointer">
+                <div id="uploadContent" class="text-center">
+                    <i class="fas fa-cloud-upload-alt text-6xl text-primary-600 dark:text-primary-400 mb-4"></i>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Upload Waste Image</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mb-6">Drag and drop or click to select</p>
+                    <input type="file" id="imageInput" accept="image/*" class="hidden">
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                        <button onclick="document.getElementById('imageInput').click()" class="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700 transition-colors duration-200">
+                            <i class="fas fa-folder-open"></i>
+                            <span>Choose File</span>
+                        </button>
+                        <button onclick="captureImage()" class="inline-flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors duration-200">
+                            <i class="fas fa-camera"></i>
+                            <span>Take Photo</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="imagePreview" class="hidden">
+                    <div class="relative">
+                        <img id="previewImg" src="" alt="Preview" class="max-w-full max-h-96 mx-auto rounded-xl shadow-lg">
+                        <button onclick="removeImage()" class="absolute top-4 right-4 w-12 h-12 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200 shadow-lg">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <button id="classifyBtn" onclick="classifyImage()" disabled class="w-full py-4 bg-gradient-to-r from-primary-600 to-blue-600 text-white rounded-xl font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl transition-all duration-200 mb-6">
+                <i class="fas fa-magic mr-2"></i>
+                Classify Image
+            </button>
+            
+            <!-- Loading -->
+            <div id="loadingSpinner" class="hidden text-center py-8">
+                <div class="inline-block w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-gray-600 dark:text-gray-400 mt-4">Analyzing image...</p>
+            </div>
+            
+            <!-- Results -->
+            <div id="resultsContainer" class="hidden bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+                <div class="text-center mb-6">
+                    <div id="resultIcon" class="w-24 h-24 mx-auto rounded-full flex items-center justify-center text-4xl mb-4"></div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Classification Result</h3>
+                    <div id="resultCategory" class="text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2"></div>
+                    <div id="resultConfidence" class="text-gray-600 dark:text-gray-400"></div>
+                </div>
+                
+                <div class="bg-primary-50 dark:bg-gray-700 rounded-xl p-6 mb-6">
+                    <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center">
+                        <i class="fas fa-info-circle mr-2 text-primary-600"></i>
+                        Disposal Instructions
+                    </h4>
+                    <p id="disposalText" class="text-gray-700 dark:text-gray-300"></p>
+                </div>
+                
+                <div class="bg-blue-50 dark:bg-gray-700 rounded-xl p-6 mb-6">
+                    <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center">
+                        <i class="fas fa-lightbulb mr-2 text-blue-600"></i>
+                        Recycling Tips
+                    </h4>
+                    <ul id="tipsList" class="space-y-2 text-gray-700 dark:text-gray-300"></ul>
+                </div>
+                
+                <div id="pointsEarned" class="hidden bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-xl p-4 text-center font-bold text-lg mb-6">
+                    <i class="fas fa-star mr-2"></i>
+                    +<span id="earnedPoints">10</span> Points Earned!
+                </div>
+                
+                <button onclick="viewRecyclingCenters()" class="w-full py-4 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-colors duration-200">
+                    <i class="fas fa-map-marker-alt mr-2"></i>
+                    Find Recycling Centers
+                </button>
+            </div>
+        </section>
+
+        <!-- Centers Section -->
+        <section id="centers" class="section hidden max-w-7xl mx-auto">
+            <div class="text-center mb-10">
+                <h2 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-map-marker-alt text-primary-600 dark:text-primary-400"></i>
+                    Nearby Recycling Centers
+                </h2>
+                <p class="text-gray-600 dark:text-gray-400">Find recycling centers within 2km of your location</p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2">
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden h-[500px]">
+                        <div id="map" class="w-full h-full"></div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Recycling Centers</h3>
+                    <div id="centersList" class="space-y-4 max-h-[432px] overflow-y-auto pr-2"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="section hidden max-w-7xl mx-auto">
+            <div class="text-center mb-10">
+                <h2 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-chart-line text-primary-600 dark:text-primary-400"></i>
+                    Your Dashboard
+                </h2>
+                <p class="text-gray-600 dark:text-gray-400">Track your progress and achievements</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Achievements -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                        <i class="fas fa-trophy text-yellow-500 mr-2"></i>
+                        Achievements
+                    </h3>
+                    <div id="badgesContainer" class="grid grid-cols-3 gap-4"></div>
+                </div>
+                
+                <!-- Statistics -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                        <i class="fas fa-chart-bar text-blue-500 mr-2"></i>
+                        Statistics
+                    </h3>
+                    <div class="space-y-4 mb-6">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 dark:text-gray-400">Total Classifications:</span>
+                            <span class="font-bold text-gray-900 dark:text-white" id="dashTotalClass">0</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 dark:text-gray-400">Current Streak:</span>
+                            <span class="font-bold text-gray-900 dark:text-white" id="currentStreak">0 days</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 dark:text-gray-400">Total Points:</span>
+                            <span class="font-bold text-gray-900 dark:text-white" id="dashTotalPoints">0</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 dark:text-gray-400">Current Level:</span>
+                            <span class="font-bold text-gray-900 dark:text-white" id="dashLevel">1</span>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
+                            <span>Level Progress</span>
+                            <span id="levelProgress">0/100</span>
+                        </div>
+                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                            <div id="progressFill" class="h-full bg-gradient-to-r from-primary-600 to-blue-600 transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Classification History -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                        <i class="fas fa-recycle text-green-500 mr-2"></i>
+                        Classification History
+                    </h3>
+                    <div id="categoryBreakdown" class="space-y-3"></div>
+                </div>
+                
+                <!-- Recent Activity -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                        <i class="fas fa-calendar-alt text-purple-500 mr-2"></i>
+                        Recent Activity
+                    </h3>
+                    <div id="activityList" class="space-y-3 max-h-64 overflow-y-auto"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Learn Section -->
+        <section id="learn" class="section hidden max-w-7xl mx-auto">
+            <div class="text-center mb-10">
+                <h2 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-book text-primary-600 dark:text-primary-400"></i>
+                    Learn About Waste Management
+                </h2>
+                <p class="text-gray-600 dark:text-gray-400">Educational resources for sustainable living</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Plastics -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 hover:shadow-2xl transition-shadow duration-300">
+                    <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">♻️</div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3 text-center">Plastics</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4 text-center">Learn about different types of plastics and how to recycle them properly.</p>
+                    <ul class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                        <li>• Look for recycling codes (1-7)</li>
+                        <li>• Rinse containers before recycling</li>
+                        <li>• Remove caps and lids when required</li>
+                        <li>• Avoid mixing different plastic types</li>
+                    </ul>
+                </div>
+                
+                <!-- Metals -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 hover:shadow-2xl transition-shadow duration-300">
+                    <div class="w-20 h-20 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">🔩</div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3 text-center">Metals</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4 text-center">Metal recycling saves energy and natural resources.</p>
+                    <ul class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                        <li>• Aluminum cans are infinitely recyclable</li>
+                        <li>• Rinse food cans to prevent contamination</li>
+                        <li>• Remove paper labels when possible</li>
+                        <li>• Steel and aluminum can be recycled together</li>
+                    </ul>
+                </div>
+                
+                <!-- Paper -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 hover:shadow-2xl transition-shadow duration-300">
+                    <div class="w-20 h-20 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">📄</div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3 text-center">Paper</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4 text-center">Paper recycling reduces deforestation and saves trees.</p>
+                    <ul class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                        <li>• Keep paper clean and dry</li>
+                        <li>• Remove plastic windows from envelopes</li>
+                        <li>• Flatten cardboard boxes</li>
+                        <li>• Don't recycle wax-coated paper</li>
+                    </ul>
+                </div>
+                
+                <!-- Organic -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 hover:shadow-2xl transition-shadow duration-300">
+                    <div class="w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">🌱</div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3 text-center">Organic Waste</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4 text-center">Composting organic waste creates nutrient-rich soil.</p>
+                    <ul class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                        <li>• Start a compost bin for food scraps</li>
+                        <li>• Include fruit, vegetables, coffee grounds</li>
+                        <li>• Avoid meat, dairy, and oily foods</li>
+                        <li>• Turn compost regularly for best results</li>
+                    </ul>
+                </div>
+                
+                <!-- E-Waste -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 hover:shadow-2xl transition-shadow duration-300">
+                    <div class="w-20 h-20 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">💻</div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3 text-center">E-Waste</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4 text-center">Electronic waste contains valuable materials and toxins.</p>
+                    <ul class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                        <li>• Never throw electronics in regular trash</li>
+                        <li>• Find certified e-waste recycling centers</li>
+                        <li>• Donate working electronics when possible</li>
+                        <li>• Remove batteries before recycling</li>
+                    </ul>
+                </div>
+                
+                <!-- General Tips -->
+                <div class="bg-gradient-to-br from-primary-600 to-blue-600 text-white rounded-2xl shadow-xl p-6 hover:shadow-2xl transition-shadow duration-300">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-lightbulb text-5xl mb-3"></i>
+                        <h3 class="text-2xl font-bold">General Tips</h3>
+                    </div>
+                    <ul class="space-y-2 text-sm">
+                        <li><strong>Reduce:</strong> Buy less, choose minimal packaging</li>
+                        <li><strong>Reuse:</strong> Find new uses for items</li>
+                        <li><strong>Recycle:</strong> Sort waste properly</li>
+                        <li><strong>Educate:</strong> Share knowledge with others</li>
+                        <li><strong>Advocate:</strong> Support better waste policies</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- AI Chatbot Button -->
+    <button id="chatbotToggle" class="fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-br from-primary-600 to-blue-600 text-white rounded-full shadow-2xl hover:scale-110 transition-transform duration-200 z-50 flex items-center justify-center">
+        <i class="fas fa-comments text-2xl"></i>
+    </button>
+
+    <!-- Chatbot Panel -->
+    <div id="chatbotPanel" class="fixed bottom-24 right-6 w-96 max-w-[calc(100vw-3rem)] h-[600px] max-h-[calc(100vh-8rem)] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl z-50 hidden flex-col overflow-hidden">
+        <!-- Chat Header -->
+        <div class="bg-gradient-to-r from-primary-600 to-blue-600 text-white p-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                    <i class="fas fa-robot text-primary-600"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold">EcoSort AI Assistant</h3>
+                    <p class="text-xs opacity-90">Powered by Groq</p>
+                </div>
+            </div>
+            <button id="chatbotClose" class="w-8 h-8 rounded-full hover:bg-white/20 transition-colors duration-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <!-- Chat Messages -->
+        <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
+            <!-- Welcome message -->
+            <div class="flex items-start space-x-2">
+                <div class="w-8 h-8 bg-gradient-to-br from-primary-600 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-robot text-white text-sm"></i>
+                </div>
+                <div class="bg-white dark:bg-gray-700 rounded-2xl rounded-tl-none p-3 max-w-[80%] shadow">
+                    <p class="text-sm text-gray-800 dark:text-gray-200">
+                        Hello! I'm your EcoSort AI assistant. I can help you with:
+                        <br><br>
+                        • Waste classification questions
+                        <br>• Recycling tips and guidelines
+                        <br>• Environmental impact information
+                        <br>• Finding recycling centers
+                        <br><br>
+                        How can I help you today?
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Typing Indicator -->
+        <div id="typingIndicator" class="hidden px-4 py-2">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 bg-gradient-to-br from-primary-600 to-blue-600 rounded-full flex items-center justify-center">
+                    <i class="fas fa-robot text-white text-sm"></i>
+                </div>
+                <div class="bg-white dark:bg-gray-700 rounded-2xl p-3 shadow">
+                    <div class="flex space-x-1">
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chat Input -->
+        <div class="border-t dark:border-gray-700 p-4">
+            <div class="flex items-center space-x-2">
+                <input 
+                    type="text" 
+                    id="chatInput" 
+                    placeholder="Ask me anything..."
+                    class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                <button id="chatSend" class="w-12 h-12 bg-gradient-to-br from-primary-600 to-blue-600 text-white rounded-xl hover:shadow-lg transition-all duration-200">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 left-6 transform -translate-x-full transition-transform duration-300 z-50">
+        <div class="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-3">
+            <i class="fas fa-check-circle text-green-400"></i>
+            <span id="toastMessage"></span>
+        </div>
+    </div>
+
+    <!-- Badge Unlock Modal -->
+    <div id="badgeModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full text-center transform scale-0 transition-transform duration-300" id="badgeModalContent">
+            <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">🎉 New Badge Unlocked!</h2>
+            <div id="badgeUnlock" class="mb-6"></div>
+            <button onclick="closeBadgeModal()" class="px-8 py-3 bg-gradient-to-r from-primary-600 to-blue-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-200">
+                Awesome!
+            </button>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- App JS -->
+    <script src="app.js"></script>
+</body>
+</html>
